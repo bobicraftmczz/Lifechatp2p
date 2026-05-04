@@ -3,31 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P v37 - Hardware Fix</title>
+    <title>P2P v38 - Acceso Total</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #0b141a; --header: #202c33; --accent: #00a884; --text: #e9edef; --msg-me: #005c4b; --msg-friend: #202c33; --border: #222d34; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body { background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; position: fixed; }
 
-        /* Pantalla de inicio para forzar permisos */
+        /* Pantalla de inicio mejorada */
         #start-screen { 
             position: fixed; inset: 0; background: var(--bg); z-index: 30000; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;
         }
-        .start-btn { background: var(--accent); color: white; border: none; padding: 20px 40px; border-radius: 50px; font-size: 18px; font-weight: bold; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,168,132,0.4); }
+        .start-btn { background: var(--accent); color: white; border: none; padding: 20px 40px; border-radius: 50px; font-size: 18px; font-weight: bold; margin-top: 20px; width: 100%; }
 
         #app-container { display: flex; width: 200vw; height: 100vh; transition: transform 0.3s ease; }
         #app-container.chat-open { transform: translateX(-100vw); }
         .view { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
 
-        /* Alerta de Llamada */
-        #incoming-overlay { display: none; position: fixed; inset: 0; background: rgba(11,20,26,0.95); z-index: 20000; flex-direction: column; align-items: center; justify-content: center; }
-        .call-card { background: var(--header); padding: 40px; border-radius: 30px; text-align: center; width: 85%; }
-
+        /* Estilos generales */
         .top-bar { background: var(--header); padding: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
         #messages { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 180px; display: flex; flex-direction: column; }
-        .msg { padding: 10px; border-radius: 10px; max-width: 80%; margin-bottom: 8px; }
+        .msg { padding: 10px; border-radius: 10px; max-width: 80%; margin-bottom: 8px; font-size: 15px; }
         .msg.me { align-self: flex-end; background: var(--msg-me); }
         .msg.friend { align-self: flex-start; background: var(--msg-friend); }
 
@@ -41,24 +38,14 @@
 <body>
 
 <div id="start-screen">
-    <h2>Configuración de Audio y Video</h2>
-    <p style="margin-top:10px; opacity:0.8;">Para recibir llamadas con sonido, necesitamos activar el sistema.</p>
-    <button class="start-btn" onclick="activarTodo()">EMPEZAR / ACTIVAR</button>
-</div>
-
-<div id="incoming-overlay">
-    <div class="call-card">
-        <h2 id="caller-name">Llamada...</h2>
-        <div style="margin-top:20px; display:flex; gap:15px; justify-content:center;">
-            <button onclick="location.reload()" style="padding:15px 25px; border-radius:30px; background:#ff3b30; color:white; border:none;">COLGAR</button>
-            <button onclick="aceptarLlamada()" style="padding:15px 25px; border-radius:30px; background:var(--accent); color:white; border:none;">ACEPTAR</button>
-        </div>
-    </div>
+    <h2 id="status-text">Bienvenido a P2P</h2>
+    <p style="margin-top:10px; opacity:0.8;">Toca el botón para conectar. Si pide cámara, dale a permitir.</p>
+    <button class="start-btn" id="main-btn" onclick="entrar()">ENTRAR / ACTIVAR</button>
 </div>
 
 <div id="app-container">
     <section class="view">
-        <div class="top-bar"><b>P2P v37</b> <span id="my-id-ui" style="font-size:10px;"></span></div>
+        <div class="top-bar"><b>P2P v38</b> <span id="my-id-ui" style="font-size:10px; color:var(--accent);"></span></div>
         <div style="padding:15px; display:flex; gap:10px;">
             <input type="text" id="add-id" placeholder="ID amigo..." style="flex:1; padding:12px; border-radius:10px; background:#2a3942; color:white; border:none;">
             <button onclick="addAmigo()" style="background:var(--accent); border:none; padding:10px; border-radius:10px; color:white;">+</button>
@@ -71,8 +58,8 @@
             <button onclick="back()" style="background:none; border:none; color:var(--accent); font-size:25px;">←</button>
             <b id="chat-title">Chat</b>
             <div style="display:flex; gap:20px;">
-                <button onclick="iniciarLlamada(false)" style="background:none; border:none; font-size:22px;">📞</button>
-                <button onclick="iniciarLlamada(true)" style="background:none; border:none; font-size:22px;">🎥</button>
+                <button onclick="llamar(false)" style="background:none; border:none; font-size:22px;">📞</button>
+                <button onclick="llamar(true)" style="background:none; border:none; font-size:22px;">🎥</button>
             </div>
         </div>
         <div id="messages"></div>
@@ -86,42 +73,33 @@
 <div id="call-screen">
     <video id="v-remote" autoplay playsinline></video>
     <video id="v-local" autoplay muted playsinline></video>
-    <div style="height:100px; display:flex; justify-content:center; align-items:center;"><button onclick="location.reload()" style="background:red; width:65px; height:65px; border-radius:50%; border:none; color:white; font-size:25px;">✖</button></div>
+    <div style="height:100px; display:flex; justify-content:center; align-items:center;"><button onclick="location.reload()" style="background:red; width:60px; height:60px; border-radius:50%; border:none; color:white; font-size:25px;">✖</button></div>
 </div>
 
 <script>
-    let peer, conn, localStream, chatActual, callEntrante, audioCtx, ringInterval;
-    let amigos = JSON.parse(localStorage.getItem('am37') || '[]');
-    let miId = localStorage.getItem('id37') || prompt("Tu nombre:").toLowerCase().trim();
-    localStorage.setItem('id37', miId);
+    let peer, conn, localStream, chatActual, audioCtx;
+    let amigos = JSON.parse(localStorage.getItem('am38') || '[]');
+    let miId = localStorage.getItem('id38') || prompt("Tu nombre:").toLowerCase().trim();
+    localStorage.setItem('id38', miId);
 
-    // Función para activar audio y permisos con un solo clic
-    async function activarTodo() {
+    async function entrar() {
+        const btn = document.getElementById('main-btn');
+        btn.innerText = "CONECTANDO...";
+        btn.disabled = true;
+
+        // Intentar activar Audio Context para los pitidos
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+
+        // Intentar pedir cámara pero NO BLOQUEAR si falla
         try {
-            // 1. Activar Audio Context
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // 2. Pedir permisos de cámara/micro de una vez
             localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-            
-            // 3. Ocultar pantalla de inicio
-            document.getElementById('start-screen').style.display = 'none';
-            
-            // 4. Inicializar PeerJS después de los permisos
-            initPeer();
         } catch (e) {
-            alert("Debes permitir el acceso a la cámara y micro para que la app funcione.");
+            console.log("Cámara denegada, entrando solo modo chat.");
         }
-    }
 
-    function sonar() {
-        if(!audioCtx) return;
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.value = 600;
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        // Pasar a la app pase lo que pase
+        document.getElementById('start-screen').style.display = 'none';
+        initPeer();
     }
 
     function initPeer() {
@@ -130,10 +108,11 @@
         peer = new Peer(miId, { config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} });
         
         peer.on('call', call => {
-            callEntrante = call;
-            ringInterval = setInterval(sonar, 800);
-            document.getElementById('caller-name').innerText = call.peer + " llamando...";
-            document.getElementById('incoming-overlay').style.display = "flex";
+            if(confirm("Llamada de " + call.peer + ". ¿Aceptar?")) {
+                document.getElementById('call-screen').style.display = 'flex';
+                call.answer(localStream);
+                call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
+            }
         });
 
         peer.on('connection', c => {
@@ -142,23 +121,18 @@
         });
     }
 
-    async function aceptarLlamada() {
-        clearInterval(ringInterval);
-        document.getElementById('incoming-overlay').style.display = "none";
-        document.getElementById('call-screen').style.display = 'flex';
-        document.getElementById('v-local').srcObject = localStream;
-        callEntrante.answer(localStream);
-        callEntrante.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
-    }
-
-    async function iniciarLlamada(v) {
+    async function llamar(v) {
+        if(!localStream) {
+            try { localStream = await navigator.mediaDevices.getUserMedia({video: v, audio: true}); } 
+            catch(e) { return alert("No hay acceso a la cámara."); }
+        }
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('v-local').srcObject = localStream;
         const call = peer.call(chatActual, localStream);
         call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
     }
 
-    // Funciones básicas
+    // Chat
     function enviar() {
         const i = document.getElementById('m-input');
         if(!i.value || !chatActual) return;
@@ -167,8 +141,8 @@
         i.value = "";
     }
     function guard(id, t, cl) {
-        let h = JSON.parse(localStorage.getItem('h37_'+id) || '[]');
-        h.push({t, cl}); localStorage.setItem('h37_'+id, JSON.stringify(h));
+        let h = JSON.parse(localStorage.getItem('h38_'+id) || '[]');
+        h.push({t, cl}); localStorage.setItem('h38_'+id, JSON.stringify(h));
     }
     function print(t, cl) {
         const d = document.createElement('div'); d.className = 'msg ' + cl; d.innerText = t;
@@ -183,7 +157,7 @@
                 chatActual = id; document.getElementById('chat-title').innerText = id;
                 document.getElementById('app-container').classList.add('chat-open');
                 document.getElementById('messages').innerHTML = "";
-                const h = JSON.parse(localStorage.getItem('h37_'+id) || '[]');
+                const h = JSON.parse(localStorage.getItem('h38_'+id) || '[]');
                 h.forEach(m => print(m.t, m.cl));
                 if(conn) conn.close(); conn = peer.connect(id);
             };
@@ -191,7 +165,7 @@
         });
     }
     function addAmigo() { const i = document.getElementById('add-id'); if(i.value) { amigos.push(i.value.toLowerCase().trim()); save(); render(); i.value=""; } }
-    function save() { localStorage.setItem('am37', JSON.stringify(amigos)); }
+    function save() { localStorage.setItem('am38', JSON.stringify(amigos)); }
     function back() { document.getElementById('app-container').classList.remove('chat-open'); chatActual = null; }
 </script>
 </body>
