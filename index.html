@@ -1,266 +1,193 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Chat v29 - Estilo Móvil</title>
+    <title>P2P v30 - Android Permisos</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #0b141a; --header: #202c33; --accent: #00a884; --text: #e9edef; --msg-me: #005c4b; --msg-friend: #202c33; --border: #222d34; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body { background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; position: fixed; }
 
-        /* Navegación por deslizamiento */
-        #app-container { display: flex; width: 200vw; height: 100vh; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        #app-container { display: flex; width: 200vw; height: 100vh; transition: transform 0.3s ease; }
         #app-container.chat-open { transform: translateX(-100vw); }
 
-        #view-list, #view-chat { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; background: var(--bg); }
+        .view { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
+        .top-bar { background: var(--header); padding: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
 
-        /* Barra Superior */
-        .top-bar { background: var(--header); padding: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); z-index: 10; }
+        /* Botón de Permisos */
+        #perm-bar { background: #344047; color: #fff; padding: 10px; text-align: center; font-size: 13px; cursor: pointer; border-bottom: 2px solid var(--accent); }
 
-        /* Añadir Amigos */
-        .add-section { padding: 12px; background: #111b21; display: flex; gap: 10px; border-bottom: 1px solid var(--border); }
-        .add-section input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: #2a3942; color: white; font-size: 16px; outline: none; }
-        .add-btn { background: var(--accent); border: none; padding: 0 20px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+        /* Lista de Amigos */
+        .add-section { padding: 12px; background: #111b21; display: flex; gap: 10px; }
+        .add-section input { flex: 1; padding: 12px; border-radius: 8px; border: none; background: #2a3942; color: white; font-size: 16px; }
 
-        /* Lista de Chats */
-        .lista-cont { flex: 1; overflow-y: auto; }
-        .amigo-item { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
-        .amigo-item:active { background: #2a3942; }
+        /* Chat */
+        #messages { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 120px; background-color: #0b141a; }
+        .msg { padding: 10px; border-radius: 10px; max-width: 85%; margin-bottom: 8px; font-size: 15px; }
+        .msg.me { align-self: flex-end; background: var(--msg-me); margin-left: auto; }
+        .msg.friend { align-self: flex-start; background: var(--msg-friend); }
 
-        /* Área de Mensajes con Fondo WhatsApp */
-        #messages { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 15px; 
-            padding-bottom: 100px;
-            background-color: #0b141a;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-blend-mode: overlay;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .msg { padding: 8px 14px; border-radius: 12px; max-width: 85%; font-size: 15px; line-height: 1.4; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
-        .msg.me { align-self: flex-end; background: var(--msg-me); border-top-right-radius: 2px; }
-        .msg.friend { align-self: flex-start; background: var(--msg-friend); border-top-left-radius: 2px; }
-        .time { font-size: 10px; opacity: 0.5; margin-top: 4px; display: block; text-align: right; }
-
-        /* Barra de Entrada (Subida para evitar barra de Android) */
+        /* BARRA DE MENSAJES (Súper elevada para Android) */
         .input-bar { 
             position: absolute; 
-            bottom: 25px; 
-            width: 92%; 
-            left: 4%; 
+            bottom: 45px; /* Elevada significativamente */
+            width: 90%; 
+            left: 5%; 
             background: var(--header); 
-            padding: 8px 12px; 
+            padding: 10px; 
             display: flex; 
             gap: 10px; 
-            border-radius: 30px; 
-            align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 100;
+            border-radius: 35px; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6); 
+            z-index: 1000;
         }
         .input-bar input { flex: 1; padding: 10px; border: none; background: transparent; color: white; font-size: 16px; outline: none; }
-        .send-btn { background: var(--accent); border: none; width: 45px; height: 45px; border-radius: 50%; color: white; cursor: pointer; font-size: 20px; flex-shrink: 0; }
+        .send-btn { background: var(--accent); border: none; width: 45px; height: 45px; border-radius: 50%; color: white; cursor: pointer; }
 
-        /* Pantalla de Videollamada (Corrección de Bandas Negras) */
+        /* Video */
         #call-screen { display: none; position: fixed; inset: 0; background: black; z-index: 9999; flex-direction: column; }
-        .video-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #000; }
-        
-        /* object-fit: cover llena toda la pantalla eliminando el negro */
-        video { width: 100%; height: 50%; object-fit: cover; background: #111; border-bottom: 2px solid #222; }
-        
-        .controls { height: 120px; display: flex; justify-content: center; align-items: center; background: #111; }
-        .hang-btn { background: #ff3b30; width: 70px; height: 70px; border-radius: 50%; border: none; color: white; font-size: 30px; cursor: pointer; }
+        video { width: 100%; height: 50%; object-fit: cover; }
     </style>
 </head>
 <body>
 
 <div id="app-container">
-    <section id="view-list">
-        <div class="top-bar">
-            <span>Chat Privado P2P</span>
-            <span id="label-mi-id" style="font-size:12px; color:var(--accent);"></span>
-        </div>
+    <section class="view">
+        <div id="perm-bar" onclick="activarPermisosManual()">⚠️ Toca aquí para Activar Cámara y Micro</div>
+        <div class="top-bar"><b>P2P Chat</b> <span id="mi-id-display" style="font-size:10px; color:var(--accent);"></span></div>
         <div class="add-section">
-            <input type="text" id="input-nuevo-amigo" placeholder="Escribe ID del amigo...">
-            <button class="add-btn" onclick="agregarAmigo()">AÑADIR</button>
+            <input type="text" id="nuevo-amigo" placeholder="ID Amigo...">
+            <button onclick="addAmigo()" style="background:var(--accent); border:none; padding:10px 15px; border-radius:8px; color:white;">+</button>
         </div>
-        <div class="lista-cont" id="lista-contactos"></div>
-        <button onclick="cerrarSesion()" style="padding:15px; color:#ea0038; background:none; border:none; font-size:12px; opacity: 0.6;">BORRAR DATOS Y SALIR</button>
+        <div id="lista-real" style="flex:1; overflow-y:auto;"></div>
     </section>
 
-    <section id="view-chat">
+    <section class="view">
         <div class="top-bar">
-            <button onclick="volverALista()" style="background:none; border:none; color:var(--accent); font-size:26px;">←</button>
-            <b id="nombre-chat">Chat</b>
-            <div style="display:flex; gap:18px;">
-                <button onclick="iniciarLlamada(false)" style="background:none; border:none; color:white; font-size:22px;">📞</button>
-                <button onclick="iniciarLlamada(true)" style="background:none; border:none; color:white; font-size:22px;">🎥</button>
+            <button onclick="cerrarChat()" style="background:none; border:none; color:var(--accent); font-size:24px;">←</button>
+            <b id="chat-con">Chat</b>
+            <div style="display:flex; gap:15px;">
+                <button onclick="llamar(false)" style="background:none; border:none; font-size:22px;">📞</button>
+                <button onclick="llamar(true)" style="background:none; border:none; font-size:22px;">🎥</button>
             </div>
         </div>
-        <div id="messages"></div>
+        <div id="messages" style="display:flex; flex-direction:column;"></div>
         <div class="input-bar">
-            <input type="text" id="input-mensaje" placeholder="Mensaje..." onkeypress="if(event.key==='Enter') enviarMensaje()">
-            <button class="send-btn" onclick="enviarMensaje()">➤</button>
+            <input type="text" id="m-input" placeholder="Mensaje..." onkeypress="if(event.key==='Enter') enviar()">
+            <button class="send-btn" onclick="enviar()">➤</button>
         </div>
     </section>
 </div>
 
 <div id="call-screen">
-    <div class="video-container">
-        <video id="v-remoto" autoplay playsinline></video>
-        <video id="v-local" autoplay muted playsinline></video>
-    </div>
-    <div class="controls">
-        <button class="hang-btn" onclick="colgar()">✖</button>
+    <video id="v-remote" autoplay playsinline></video>
+    <video id="v-local" autoplay muted playsinline></video>
+    <div style="height:100px; display:flex; justify-content:center; align-items:center;">
+        <button onclick="location.reload()" style="background:red; width:60px; height:60px; border-radius:50%; border:none; color:white; font-size:24px;">✖</button>
     </div>
 </div>
 
 <script>
     let peer, conn, localStream, chatActual = null;
-    let listaAmigos = JSON.parse(localStorage.getItem('p2p_amigos_v29') || '[]');
-    let miId = localStorage.getItem('p2p_id_v29');
-
-    // Inicialización de Usuario
-    if(!miId) {
-        miId = prompt("Crea tu nombre de usuario:").toLowerCase().replace(/\s+/g, '');
-        if(miId) localStorage.setItem('p2p_id_v29', miId);
-        else location.reload();
-    }
+    let amigos = JSON.parse(localStorage.getItem('p2p_am_v30') || '[]');
+    let miId = localStorage.getItem('p2p_id_v30') || prompt("Nombre de usuario:").toLowerCase();
+    localStorage.setItem('p2p_id_v30', miId);
 
     window.onload = () => {
-        document.getElementById('label-mi-id').innerText = "Tu ID: " + miId;
-        actualizarListaUI();
-
-        // Configurar PeerJS con servidores de Google para evitar bloqueos
+        document.getElementById('mi-id-display').innerText = "YO: " + miId;
+        renderAmigos();
         peer = new Peer(miId, { config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} });
-
-        // Escuchar llamadas entrantes
-        peer.on('call', async call => {
-            if(confirm("Llamada de " + call.peer)) {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-                    document.getElementById('call-screen').style.display = 'flex';
-                    document.getElementById('v-local').srcObject = localStream;
-                    call.answer(localStream);
-                    call.on('stream', rs => document.getElementById('v-remoto').srcObject = rs);
-                } catch(e) { alert("Error de cámara/micro: " + e.message); }
-            }
-        });
-
-        // Escuchar mensajes entrantes
-        peer.on('connection', c => {
-            c.on('data', data => {
-                guardarEnMemoria(c.peer, data, 'friend');
-                if(chatActual === c.peer) renderizarMensaje(data, 'friend');
-            });
-            if(!listaAmigos.includes(c.peer)) {
-                listaAmigos.push(c.peer);
-                localStorage.setItem('p2p_amigos_v29', JSON.stringify(listaAmigos));
-                actualizarListaUI();
-            }
-        });
-    };
-
-    function abrirChat(id) {
-        chatActual = id;
-        document.getElementById('nombre-chat').innerText = id;
-        document.getElementById('app-container').classList.add('chat-open');
-        const box = document.getElementById('messages');
-        box.innerHTML = "";
         
-        // Cargar historial de localStorage
-        const historial = JSON.parse(localStorage.getItem('hist_v29_' + id) || '[]');
-        historial.forEach(m => renderizarMensaje(m.t, m.cl, m.h));
+        peer.on('call', async call => {
+            if(confirm("Llamada entrante...")) {
+                localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('v-local').srcObject = localStream;
+                call.answer(localStream);
+                call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
+            }
+        });
 
+        peer.on('connection', c => {
+            c.on('data', d => {
+                guardar(c.peer, d, 'friend');
+                if(chatActual === c.peer) print(d, 'friend');
+            });
+            if(!amigos.includes(c.peer)) { amigos.push(c.peer); saveAm(); renderAmigos(); }
+        });
+    }
+
+    async function activarPermisosManual() {
+        try {
+            await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            document.getElementById('perm-bar').style.background = "#00a884";
+            document.getElementById('perm-bar').innerText = "✅ Permisos Concedidos";
+        } catch(e) {
+            alert("Android bloqueó los permisos. Asegúrate de estar usando HTTPS.");
+        }
+    }
+
+    async function llamar(v) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({video: v, audio: true});
+            document.getElementById('call-screen').style.display = 'flex';
+            document.getElementById('v-local').srcObject = localStream;
+            const call = peer.call(chatActual, localStream);
+            call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
+        } catch(e) { alert("Error: " + e.message); }
+    }
+
+    function enviar() {
+        const i = document.getElementById('m-input');
+        if(!i.value || !chatActual) return;
+        guardar(chatActual, i.value, 'me');
+        print(i.value, 'me');
+        if(conn && conn.open) conn.send(i.value);
+        i.value = "";
+    }
+
+    function openChat(id) {
+        chatActual = id;
+        document.getElementById('chat-con').innerText = id;
+        document.getElementById('app-container').classList.add('chat-open');
+        document.getElementById('messages').innerHTML = "";
+        const h = JSON.parse(localStorage.getItem('h30_'+id) || '[]');
+        h.forEach(m => print(m.t, m.cl));
         if(conn) conn.close();
         conn = peer.connect(id);
     }
 
-    function volverALista() {
-        document.getElementById('app-container').classList.remove('chat-open');
-        chatActual = null;
+    function cerrarChat() { document.getElementById('app-container').classList.remove('chat-open'); chatActual = null; }
+    function guardar(id, t, cl) {
+        let h = JSON.parse(localStorage.getItem('h30_'+id) || '[]');
+        h.push({t, cl});
+        localStorage.setItem('h30_'+id, JSON.stringify(h));
     }
-
-    function enviarMensaje() {
-        const input = document.getElementById('input-mensaje');
-        const texto = input.value.trim();
-        if(!texto || !chatActual) return;
-
-        const hora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        
-        // Guardar y mostrar
-        guardarEnMemoria(chatActual, texto, 'me', hora);
-        renderizarMensaje(texto, 'me', hora);
-        
-        if(conn && conn.open) conn.send(texto);
-        input.value = "";
+    function print(t, cl) {
+        const d = document.createElement('div');
+        d.className = 'msg ' + cl;
+        d.innerText = t;
+        const b = document.getElementById('messages');
+        b.appendChild(d);
+        b.scrollTop = b.scrollHeight;
     }
-
-    async function iniciarLlamada(conVideo) {
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({video: conVideo, audio: true});
-            document.getElementById('call-screen').style.display = 'flex';
-            document.getElementById('v-local').srcObject = localStream;
-            
-            const call = peer.call(chatActual, localStream);
-            call.on('stream', rs => document.getElementById('v-remoto').srcObject = rs);
-        } catch(e) { alert("Habilita el permiso de cámara en los ajustes del navegador."); }
+    function addAmigo() {
+        const i = document.getElementById('nuevo-amigo');
+        if(i.value) { amigos.push(i.value.toLowerCase()); saveAm(); renderAmigos(); i.value = ""; }
     }
-
-    function colgar() {
-        if(localStream) localStream.getTracks().forEach(t => t.stop());
-        location.reload(); 
-    }
-
-    function guardarEnMemoria(idAmigo, texto, clase, hora) {
-        const h = hora || new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        const key = 'hist_v29_' + idAmigo;
-        let historial = JSON.parse(localStorage.getItem(key) || '[]');
-        historial.push({t: texto, cl: clase, h: h});
-        localStorage.setItem(key, JSON.stringify(historial));
-    }
-
-    function renderizarMensaje(t, cl, h) {
-        const box = document.getElementById('messages');
-        const hora = h || new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        const div = document.createElement('div');
-        div.className = 'msg ' + cl;
-        div.innerHTML = `${t} <span class="time">${hora}</span>`;
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
-    }
-
-    function agregarAmigo() {
-        const i = document.getElementById('input-nuevo-amigo');
-        const id = i.value.trim().toLowerCase();
-        if(id && id !== miId && !listaAmigos.includes(id)) {
-            listaAmigos.push(id);
-            localStorage.setItem('p2p_amigos_v29', JSON.stringify(listaAmigos));
-            actualizarListaUI();
-            i.value = "";
-        }
-    }
-
-    function actualizarListaUI() {
-        const cont = document.getElementById('lista-contactos');
-        cont.innerHTML = "";
-        listaAmigos.forEach(id => {
+    function saveAm() { localStorage.setItem('p2p_am_v30', JSON.stringify(amigos)); }
+    function renderAmigos() {
+        const c = document.getElementById('lista-real'); c.innerHTML = "";
+        amigos.forEach(id => {
             const d = document.createElement('div');
-            d.className = 'amigo-item';
-            d.innerHTML = `<span>👤 ${id}</span> <span style="color:var(--accent)">〉</span>`;
-            d.onclick = () => abrirChat(id);
-            cont.appendChild(d);
+            d.style.padding = "20px"; d.style.borderBottom = "1px solid #222";
+            d.innerText = "👤 " + id;
+            d.onclick = () => openChat(id);
+            c.appendChild(d);
         });
     }
-
-    function cerrarSesion() { if(confirm("Se borrarán todos los chats.")) { localStorage.clear(); location.reload(); } }
 </script>
 </body>
 </html>
