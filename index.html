@@ -3,25 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P v38 - Acceso Total</title>
+    <title>P2P v39 - Force System</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #0b141a; --header: #202c33; --accent: #00a884; --text: #e9edef; --msg-me: #005c4b; --msg-friend: #202c33; --border: #222d34; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body { background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; position: fixed; }
 
-        /* Pantalla de inicio mejorada */
-        #start-screen { 
-            position: fixed; inset: 0; background: var(--bg); z-index: 30000; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;
-        }
-        .start-btn { background: var(--accent); color: white; border: none; padding: 20px 40px; border-radius: 50px; font-size: 18px; font-weight: bold; margin-top: 20px; width: 100%; }
-
         #app-container { display: flex; width: 200vw; height: 100vh; transition: transform 0.3s ease; }
         #app-container.chat-open { transform: translateX(-100vw); }
         .view { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
 
-        /* Estilos generales */
+        /* BOTÓN DE FUERZA PARA PERMISOS */
+        .force-btn { background: #ff9800; color: black; border: none; padding: 12px; font-weight: bold; width: 100%; z-index: 5000; cursor: pointer; }
+
         .top-bar { background: var(--header); padding: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
         #messages { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 180px; display: flex; flex-direction: column; }
         .msg { padding: 10px; border-radius: 10px; max-width: 80%; margin-bottom: 8px; font-size: 15px; }
@@ -37,15 +32,11 @@
 </head>
 <body>
 
-<div id="start-screen">
-    <h2 id="status-text">Bienvenido a P2P</h2>
-    <p style="margin-top:10px; opacity:0.8;">Toca el botón para conectar. Si pide cámara, dale a permitir.</p>
-    <button class="start-btn" id="main-btn" onclick="entrar()">ENTRAR / ACTIVAR</button>
-</div>
+<button class="force-btn" id="fix-btn" onclick="forzarPermisos()">⚠️ TOCAR AQUÍ PARA ACTIVAR MICRO/CÁMARA</button>
 
 <div id="app-container">
     <section class="view">
-        <div class="top-bar"><b>P2P v38</b> <span id="my-id-ui" style="font-size:10px; color:var(--accent);"></span></div>
+        <div class="top-bar"><b>P2P v39</b> <span id="my-id-ui" style="font-size:10px;"></span></div>
         <div style="padding:15px; display:flex; gap:10px;">
             <input type="text" id="add-id" placeholder="ID amigo..." style="flex:1; padding:12px; border-radius:10px; background:#2a3942; color:white; border:none;">
             <button onclick="addAmigo()" style="background:var(--accent); border:none; padding:10px; border-radius:10px; color:white;">+</button>
@@ -58,8 +49,8 @@
             <button onclick="back()" style="background:none; border:none; color:var(--accent); font-size:25px;">←</button>
             <b id="chat-title">Chat</b>
             <div style="display:flex; gap:20px;">
-                <button onclick="llamar(false)" style="background:none; border:none; font-size:22px;">📞</button>
-                <button onclick="llamar(true)" style="background:none; border:none; font-size:22px;">🎥</button>
+                <button onclick="intentarLlamada(false)" style="background:none; border:none; font-size:22px;">📞</button>
+                <button onclick="intentarLlamada(true)" style="background:none; border:none; font-size:22px;">🎥</button>
             </div>
         </div>
         <div id="messages"></div>
@@ -73,44 +64,37 @@
 <div id="call-screen">
     <video id="v-remote" autoplay playsinline></video>
     <video id="v-local" autoplay muted playsinline></video>
-    <div style="height:100px; display:flex; justify-content:center; align-items:center;"><button onclick="location.reload()" style="background:red; width:60px; height:60px; border-radius:50%; border:none; color:white; font-size:25px;">✖</button></div>
+    <div style="height:100px; display:flex; justify-content:center; align-items:center;">
+        <button onclick="location.reload()" style="background:red; width:65px; height:65px; border-radius:50%; border:none; color:white; font-size:25px;">✖</button>
+    </div>
 </div>
 
 <script>
-    let peer, conn, localStream, chatActual, audioCtx;
-    let amigos = JSON.parse(localStorage.getItem('am38') || '[]');
-    let miId = localStorage.getItem('id38') || prompt("Tu nombre:").toLowerCase().trim();
-    localStorage.setItem('id38', miId);
+    let peer, conn, streamLocal, chatActual;
+    let amigos = JSON.parse(localStorage.getItem('am39') || '[]');
+    let miId = localStorage.getItem('id39') || prompt("Nombre:").toLowerCase().trim();
+    localStorage.setItem('id39', miId);
 
-    async function entrar() {
-        const btn = document.getElementById('main-btn');
-        btn.innerText = "CONECTANDO...";
-        btn.disabled = true;
-
-        // Intentar activar Audio Context para los pitidos
-        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-
-        // Intentar pedir cámara pero NO BLOQUEAR si falla
+    // FUNCIÓN CRÍTICA: Fuerza la ventana de permisos de Android
+    async function forzarPermisos() {
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            streamLocal = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            document.getElementById('fix-btn').style.display = 'none';
+            alert("✅ Sistema listo. Ya puedes llamar.");
         } catch (e) {
-            console.log("Cámara denegada, entrando solo modo chat.");
+            alert("❌ Error: Debes dar permiso a la cámara/micro en los ajustes de Chrome.");
         }
-
-        // Pasar a la app pase lo que pase
-        document.getElementById('start-screen').style.display = 'none';
-        initPeer();
     }
 
-    function initPeer() {
-        document.getElementById('my-id-ui').innerText = "ID: " + miId;
+    window.onload = () => {
+        document.getElementById('my-id-ui').innerText = "YO: " + miId;
         render();
         peer = new Peer(miId, { config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} });
         
         peer.on('call', call => {
-            if(confirm("Llamada de " + call.peer + ". ¿Aceptar?")) {
+            if(confirm("📞 ¿Aceptar llamada de " + call.peer + "?")) {
                 document.getElementById('call-screen').style.display = 'flex';
-                call.answer(localStream);
+                call.answer(streamLocal);
                 call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
             }
         });
@@ -119,30 +103,36 @@
             c.on('data', d => { guard(c.peer, d, 'friend'); if(chatActual === c.peer) print(d, 'friend'); });
             if(!amigos.includes(c.peer)) { amigos.push(c.peer); save(); render(); }
         });
-    }
+    };
 
-    async function llamar(v) {
-        if(!localStream) {
-            try { localStream = await navigator.mediaDevices.getUserMedia({video: v, audio: true}); } 
-            catch(e) { return alert("No hay acceso a la cámara."); }
-        }
+    async function intentarLlamada(video) {
+        if(!streamLocal) return alert("Primero toca el botón NARANJA de arriba para activar el micro.");
+        
         document.getElementById('call-screen').style.display = 'flex';
-        document.getElementById('v-local').srcObject = localStream;
-        const call = peer.call(chatActual, localStream);
-        call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
+        document.getElementById('v-local').srcObject = streamLocal;
+        
+        const call = peer.call(chatActual, streamLocal);
+        call.on('stream', rs => {
+            const vid = document.getElementById('v-remote');
+            vid.srcObject = rs;
+            vid.play();
+        });
     }
 
-    // Chat
+    // Funciones Chat
     function enviar() {
         const i = document.getElementById('m-input');
         if(!i.value || !chatActual) return;
         guard(chatActual, i.value, 'me'); print(i.value, 'me');
-        if(conn && conn.open) conn.send(i.value);
+        if(conn && conn.open) conn.send(i.value); else {
+            conn = peer.connect(chatActual);
+            setTimeout(() => { if(conn.open) conn.send(i.value); }, 1000);
+        }
         i.value = "";
     }
     function guard(id, t, cl) {
-        let h = JSON.parse(localStorage.getItem('h38_'+id) || '[]');
-        h.push({t, cl}); localStorage.setItem('h38_'+id, JSON.stringify(h));
+        let h = JSON.parse(localStorage.getItem('h39_'+id) || '[]');
+        h.push({t, cl}); localStorage.setItem('h39_'+id, JSON.stringify(h));
     }
     function print(t, cl) {
         const d = document.createElement('div'); d.className = 'msg ' + cl; d.innerText = t;
@@ -157,7 +147,7 @@
                 chatActual = id; document.getElementById('chat-title').innerText = id;
                 document.getElementById('app-container').classList.add('chat-open');
                 document.getElementById('messages').innerHTML = "";
-                const h = JSON.parse(localStorage.getItem('h38_'+id) || '[]');
+                const h = JSON.parse(localStorage.getItem('h39_'+id) || '[]');
                 h.forEach(m => print(m.t, m.cl));
                 if(conn) conn.close(); conn = peer.connect(id);
             };
@@ -165,7 +155,7 @@
         });
     }
     function addAmigo() { const i = document.getElementById('add-id'); if(i.value) { amigos.push(i.value.toLowerCase().trim()); save(); render(); i.value=""; } }
-    function save() { localStorage.setItem('am38', JSON.stringify(amigos)); }
+    function save() { localStorage.setItem('am39', JSON.stringify(amigos)); }
     function back() { document.getElementById('app-container').classList.remove('chat-open'); chatActual = null; }
 </script>
 </body>
