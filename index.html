@@ -3,110 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P v42 - Estabilidad</title>
+    <title>P2P v43 - Smart Call</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #0b141a; --header: #202c33; --accent: #00a884; --text: #e9edef; --msg-me: #005c4b; --msg-friend: #202c33; --border: #222d34; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; position: fixed; width: 100vw; }
 
-        /* Modal de Llamada */
         #incoming-modal { display: none; position: fixed; inset: 0; background: rgba(11,20,26,0.98); z-index: 99999; flex-direction: column; align-items: center; justify-content: center; }
-        
-        /* Contenedor Principal */
         #app-container { display: flex; width: 200vw; height: 100vh; transition: transform 0.3s ease-in-out; }
         .view { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
 
-        .top-bar { background: var(--header); padding: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); height: 60px; }
-        
-        /* Área de Mensajes */
+        .top-bar { background: var(--header); padding: 15px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; padding-bottom: 100px; }
         
-        /* BARRA DE ESCRIBIR CORREGIDA */
-        .input-bar-container { 
-            position: absolute; bottom: 0; left: 0; width: 100%; 
-            background: var(--bg); padding: 15px; border-top: 1px solid var(--border);
-            display: flex; justify-content: center;
-        }
-        .input-bar { 
-            width: 100%; max-width: 500px; background: var(--header); 
-            padding: 5px 15px; display: flex; gap: 10px; border-radius: 30px; align-items: center;
-        }
-        .input-bar input { 
-            flex: 1; border: none; background: transparent; color: white; 
-            outline: none; font-size: 16px; height: 40px; 
-        }
+        .input-bar-container { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--bg); padding: 15px; display: flex; justify-content: center; }
+        .input-bar { width: 100%; max-width: 500px; background: var(--header); padding: 5px 15px; display: flex; gap: 10px; border-radius: 30px; align-items: center; }
+        .input-bar input { flex: 1; border: none; background: transparent; color: white; outline: none; font-size: 16px; height: 40px; }
 
+        /* Pantalla de Llamada Mejorada */
         #call-screen { display: none; position: fixed; inset: 0; background: black; z-index: 10000; flex-direction: column; }
-        video { width: 100%; height: 50%; object-fit: cover; }
+        .video-container { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; }
+        video { width: 100%; height: 50%; object-fit: cover; background: #111; }
+        #v-local { border-top: 1px solid #333; height: 30%; position: absolute; bottom: 100px; right: 10px; width: 30%; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
 
 <div id="incoming-modal">
     <div style="background:var(--header); padding:40px; border-radius:30px; text-align:center; border:2px solid var(--accent); width:85%;">
-        <h1 style="font-size: 50px;">📞</h1>
-        <h2 id="caller-id-display" style="margin:20px 0;">Alguien llama</h2>
-        <div style="display:flex; gap:15px; justify-content:center;">
-            <button onclick="location.reload()" style="background:#ff3b30; color:white; border:none; padding:15px 25px; border-radius:30px;">COLGAR</button>
+        <h2 id="caller-id-display">Llamada entrante</h2>
+        <p id="call-type-info" style="margin:10px 0; font-size:12px; color:#aaa;">Intentando conectar...</p>
+        <div style="display:flex; gap:15px; justify-content:center; margin-top:20px;">
+            <button onclick="location.reload()" style="background:#ff3b30; color:white; border:none; padding:15px 25px; border-radius:30px;">RECHAZAR</button>
             <button onclick="aceptarAhora()" style="background:var(--accent); color:white; border:none; padding:15px 25px; border-radius:30px;">ACEPTAR</button>
         </div>
     </div>
 </div>
 
 <div id="app-container">
-    <!-- VISTA 1: LISTA -->
     <section class="view">
-        <div class="top-bar"><b>P2P v42</b> <span id="my-id-ui"></span></div>
+        <div class="top-bar"><b>P2P v43</b> <span id="my-id-ui"></span></div>
         <div style="padding:15px; display:flex; gap:10px; background:#111b21;">
-            <input type="text" id="add-id" placeholder="ID amigo..." style="flex:1; padding:12px; border-radius:10px; background:#2a3942; border:none; color:white;">
-            <button onclick="addAmigo()" style="background:var(--accent); border:none; padding:10px 20px; border-radius:10px; color:white; font-weight:bold;">+</button>
+            <input type="text" id="add-id" placeholder="ID amigo...">
+            <button onclick="addAmigo()" style="background:var(--accent); border:none; padding:10px 20px; border-radius:10px; color:white;">+</button>
         </div>
         <div id="lista" style="flex:1; overflow-y:auto;"></div>
     </section>
 
-    <!-- VISTA 2: CHAT -->
     <section class="view">
         <div class="top-bar">
             <button onclick="back()" style="background:none; border:none; color:var(--accent); font-size:25px;">←</button>
             <b id="chat-title">Chat</b>
-            <button onclick="llamar()" style="background:none; border:none; font-size:22px;">🎥</button>
+            <button onclick="prepararLlamada(true)" style="background:none; border:none; font-size:22px;">🎥</button>
         </div>
         <div id="messages"></div>
         <div class="input-bar-container">
             <div class="input-bar">
-                <!-- Evento onkeydown añadido para detectar Enter -->
-                <input type="text" id="m-input" placeholder="Escribe un mensaje..." onkeydown="checkEnter(event)">
-                <button onclick="enviar()" style="background:var(--accent); border:none; width:40px; height:40px; border-radius:50%; color:white; display:flex; align-items:center; justify-content:center;">➤</button>
+                <input type="text" id="m-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') enviar()">
+                <button onclick="enviar()" style="background:var(--accent); border:none; width:40px; height:40px; border-radius:50%; color:white;">➤</button>
             </div>
         </div>
     </section>
 </div>
 
 <div id="call-screen">
-    <video id="v-remote" autoplay playsinline></video>
-    <video id="v-local" autoplay muted playsinline></video>
-    <div style="height:100px; display:flex; justify-content:center; align-items:center;">
-        <button onclick="location.reload()" style="background:red; width:65px; height:65px; border-radius:50%; border:none; color:white;">✖</button>
+    <div class="video-container">
+        <video id="v-remote" autoplay playsinline></video>
+        <video id="v-local" autoplay muted playsinline></video>
+    </div>
+    <div style="height:100px; display:flex; justify-content:center; align-items:center; background:#000;">
+        <button onclick="location.reload()" style="background:red; width:65px; height:65px; border-radius:50%; border:none; color:white; font-size:30px;">✖</button>
     </div>
 </div>
 
 <script>
     let peer, conn, localStream, chatActual, callEntrante;
-    let miId = localStorage.getItem('id42') || prompt("Tu nombre:").toLowerCase().trim();
-    localStorage.setItem('id42', miId);
+    let miId = localStorage.getItem('id43') || prompt("Nombre:").toLowerCase().trim();
+    localStorage.setItem('id43', miId);
+
+    // FUNCIÓN CLAVE: Obtener medios con respaldo (si falla video, solo audio)
+    async function obtenerMedios(conVideo) {
+        try {
+            // Intento 1: Video + Audio
+            return await navigator.mediaDevices.getUserMedia({ video: conVideo, audio: true });
+        } catch (e) {
+            console.log("Fallo cámara, intentando solo audio...");
+            try {
+                // Intento 2: Solo Audio
+                let stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                alert("⚠️ Cámara no disponible. Iniciando llamada solo con audio.");
+                return stream;
+            } catch (e2) {
+                alert("❌ Error: No se puede acceder ni al micrófono.");
+                return null;
+            }
+        }
+    }
 
     window.onload = () => {
-        document.getElementById('my-id-ui').innerText = "ID: " + miId;
+        document.getElementById('my-id-ui').innerText = "YO: " + miId;
         render();
         peer = new Peer(miId, { config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} });
         
         peer.on('call', call => {
             callEntrante = call;
-            if(navigator.vibrate) navigator.vibrate([500, 200, 500]);
             document.getElementById('caller-id-display').innerText = call.peer;
             document.getElementById('incoming-modal').style.display = 'flex';
-            alert("⚠️ LLAMADA ENTRANTE DE: " + call.peer);
         });
 
         peer.on('connection', c => {
@@ -115,66 +118,66 @@
         });
     };
 
-    // Función para detectar tecla Enter
-    function checkEnter(event) {
-        if (event.key === "Enter") {
-            event.preventDefault(); // Evita que el teclado se cierre o salte de línea
-            enviar();
-        }
-    }
-
     async function aceptarAhora() {
         document.getElementById('incoming-modal').style.display = 'none';
-        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        localStream = await obtenerMedios(true); // Intenta cámara, si no, solo audio
+        if(!localStream) return;
+        
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('v-local').srcObject = localStream;
+        
         callEntrante.answer(localStream);
-        callEntrante.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
+        callEntrante.on('stream', rs => {
+            document.getElementById('v-remote').srcObject = rs;
+        });
     }
 
-    async function llamar() {
-        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+    async function prepararLlamada() {
+        localStream = await obtenerMedios(true);
+        if(!localStream) return;
+        
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('v-local').srcObject = localStream;
+        
         const call = peer.call(chatActual, localStream);
-        call.on('stream', rs => document.getElementById('v-remote').srcObject = rs);
+        call.on('stream', rs => {
+            document.getElementById('v-remote').srcObject = rs;
+        });
     }
 
+    // Lógica de Chat
     function enviar() {
         const i = document.getElementById('m-input');
         if(!i.value || !chatActual) return;
         guard(chatActual, i.value, 'me'); print(i.value, 'me');
         if(conn && conn.open) conn.send(i.value);
-        i.value = "";
-        i.focus(); // Mantiene el foco para seguir escribiendo
+        i.value = ""; i.focus();
     }
 
     function guard(id, t, cl) {
-        let h = JSON.parse(localStorage.getItem('h42_'+id) || '[]');
-        h.push({t, cl}); localStorage.setItem('h42_'+id, JSON.stringify(h));
+        let h = JSON.parse(localStorage.getItem('h43_'+id) || '[]');
+        h.push({t, cl}); localStorage.setItem('h43_'+id, JSON.stringify(h));
     }
 
     function print(t, cl) {
         const d = document.createElement('div');
-        d.style.cssText = `padding:10px 15px; border-radius:15px; max-width:80%; margin-bottom:8px; line-height:1.4; ${cl=='me'?'align-self:flex-end; background:var(--msg-me); border-bottom-right-radius:2px;':'align-self:flex-start; background:var(--msg-friend); border-bottom-left-radius:2px;'}`;
+        d.style.cssText = `padding:10px 15px; border-radius:15px; max-width:80%; margin-bottom:8px; ${cl=='me'?'align-self:flex-end; background:var(--msg-me);':'align-self:flex-start; background:var(--msg-friend);'}`;
         d.innerText = t;
-        const b = document.getElementById('messages'); 
-        b.appendChild(d); 
-        b.scrollTop = b.scrollHeight;
+        const b = document.getElementById('messages'); b.appendChild(d); b.scrollTop = b.scrollHeight;
     }
 
     function render() {
         const c = document.getElementById('lista'); c.innerHTML = "";
-        let ams = JSON.parse(localStorage.getItem('am42') || '[]');
+        let ams = JSON.parse(localStorage.getItem('am43') || '[]');
         ams.forEach(id => {
             const d = document.createElement('div');
-            d.style.cssText = "padding:20px; border-bottom:1px solid #222; display:flex; align-items:center; gap:15px;";
-            d.innerHTML = `<div style="width:40px; height:40px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">${id[0].toUpperCase()}</div> <span>${id}</span>`;
+            d.style.cssText = "padding:20px; border-bottom:1px solid #222;";
+            d.innerHTML = `👤 ${id}`;
             d.onclick = () => {
                 chatActual = id; document.getElementById('chat-title').innerText = id;
                 document.getElementById('app-container').style.transform = 'translateX(-100vw)';
                 document.getElementById('messages').innerHTML = "";
-                let h = JSON.parse(localStorage.getItem('h42_'+id) || '[]');
+                let h = JSON.parse(localStorage.getItem('h43_'+id) || '[]');
                 h.forEach(m => print(m.t, m.cl));
                 if(conn) conn.close(); conn = peer.connect(id);
             };
@@ -183,12 +186,8 @@
     }
 
     function actualizarListaAmigos(nuevoId) {
-        let ams = JSON.parse(localStorage.getItem('am42') || '[]');
-        if(!ams.includes(nuevoId)) {
-            ams.push(nuevoId);
-            localStorage.setItem('am42', JSON.stringify(ams));
-            render();
-        }
+        let ams = JSON.parse(localStorage.getItem('am43') || '[]');
+        if(!ams.includes(nuevoId)) { ams.push(nuevoId); localStorage.setItem('am43', JSON.stringify(ams)); render(); }
     }
 
     function addAmigo() {
@@ -196,10 +195,7 @@
         if(i.value) { actualizarListaAmigos(i.value.toLowerCase().trim()); i.value=""; }
     }
 
-    function back() { 
-        document.getElementById('app-container').style.transform = 'translateX(0)'; 
-        chatActual = null; 
-    }
+    function back() { document.getElementById('app-container').style.transform = 'translateX(0)'; chatActual = null; }
 </script>
 </body>
 </html>
